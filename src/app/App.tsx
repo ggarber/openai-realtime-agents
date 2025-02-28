@@ -312,6 +312,22 @@ function App() {
     sendClientEvent({ type: "response.create" }, "trigger response");
   };
 
+  const handleAction = (action: string) => {
+    sendClientEvent(
+      {
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: action }],
+        },
+      },
+      "(send user action message)"
+    );
+
+    sendClientEvent({ type: "response.create" }, "trigger response");
+  };
+
   const handleTalkButtonDown = () => {
     if (sessionStatus !== "CONNECTED" || dataChannel?.readyState !== "open")
       return;
@@ -488,6 +504,7 @@ function App() {
           userText={userText}
           setUserText={setUserText}
           onSendMessage={handleSendTextMessage}
+          onAction={handleAction}
           canSend={
             sessionStatus === "CONNECTED" &&
             dcRef.current?.readyState === "open"

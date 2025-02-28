@@ -10,6 +10,7 @@ export interface TranscriptProps {
   userText: string;
   setUserText: (val: string) => void;
   onSendMessage: () => void;
+  onAction: (action: string) => void;
   canSend: boolean;
 }
 
@@ -17,6 +18,7 @@ function Transcript({
   userText,
   setUserText,
   onSendMessage,
+  onAction,
   canSend,
 }: TranscriptProps) {
   const { transcriptItems, toggleTranscriptItemExpand } = useTranscript();
@@ -66,6 +68,10 @@ function Transcript({
     }
   };
 
+  const handleAction = (action: string) => {
+    onAction(action);
+  };
+
   return (
     <div className="flex flex-col flex-1 bg-white min-h-0 rounded-xl">
       <div className="relative flex-1 min-h-0">
@@ -81,7 +87,7 @@ function Transcript({
           className="overflow-auto p-4 flex flex-col gap-y-4 h-full"
         >
           {transcriptItems.map((item) => {
-            const { itemId, type, role, data, expanded, timestamp, title = "", isHidden } = item;
+            const { itemId, type, role, data, expanded, timestamp, title = "", isHidden, actions } = item;
 
             if (isHidden) {
               return null;
@@ -105,6 +111,18 @@ function Transcript({
                     <div className={`whitespace-pre-wrap ${messageStyle}`}>
                       <ReactMarkdown>{displayTitle}</ReactMarkdown>
                     </div>
+                    {actions && (
+                      <div className="text-xs mt-2">
+                        {actions.map((action) => (
+                          <button 
+                            key={action} 
+                            className="bg-blue-400 text-white px-2 py-1 cursor-pointer rounded-lg mr-1"
+                            onClick={() => handleAction(action)}>
+                            {action}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               );

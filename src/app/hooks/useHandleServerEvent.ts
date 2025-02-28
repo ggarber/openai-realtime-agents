@@ -27,9 +27,75 @@ export function useHandleServerEvent({
     addTranscriptMessage,
     updateTranscriptMessage,
     updateTranscriptItemStatus,
+    updateTranscriptItemActions,
   } = useTranscript();
 
   const { logServerEvent } = useEvent();
+
+  const handleEnrichment = async (text: string): Promise<{ options?: string[] }> => {
+    const model = "gpt-4o-mini";
+    const messages = [
+      {
+        role: "user",
+        content: `
+        Extract the list of possible next actions from a message in a conversation.
+        If the message is a question with possible answers, return the possible answers.
+        If the message is a question to confirm something, return the options Yes and No.
+        If the message is a question to select an option from a list, return the options.
+        
+        Message: Is that correct?
+        Actions: {"options": ["Yes", "No"]}
+
+        Message: Do you want to know about cats, dogs or birds?
+        Actions: {"options": ["cats", "dogs", "birds"]}
+        `,
+      },
+      {
+        role: "user",
+        content: "Message: " + text + "\nActions:",
+      },
+    ];
+
+    const response = await fetch("/api/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        response_format: { 
+          type: "json_schema",
+          json_schema: {
+            name: "actions_response",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                options: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                },
+              },
+              required: ["options"],
+              additionalProperties: false,
+            },
+          },
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error("Server returned an error: " + errorText);
+    }
+
+    const completion = await response.json();
+    return JSON.parse(completion.choices[0].message.content);
+  };
 
   const handleFunctionCall = async (functionCallParams: {
     name: string;
@@ -183,6 +249,20 @@ export function useHandleServerEvent({
         const itemId = serverEvent.item?.id;
         if (itemId) {
           updateTranscriptItemStatus(itemId, "DONE");
+        }
+        break;
+      }
+
+      case "response.audio_transcript.done": {
+        const itemId = serverEvent.item_id;
+        const transcript = serverEvent.transcript;
+        if (itemId && transcript) {
+          handleEnrichment(transcript).then((result) => {
+            if (result.options) {
+              updateTranscriptItemActions(itemId, result.options);
+            }
+          }).catch((error) => {
+          });
         }
         break;
       }
